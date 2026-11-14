@@ -100,10 +100,12 @@ footer{margin-top:48px;color:var(--sub);font-size:.85rem}
 <script>
 const $=id=>document.getElementById(id);
 const S7={a:[6,6,38,6],b:[38,6,38,42],c:[38,42,38,78],d:[6,78,38,78],e:[6,42,6,78],f:[6,6,6,42],g:[6,42,38,42]};
-const SEGS={7:S7,
-9:{...S7,h:[22,8,22,40],i:[22,44,22,76]},
-14:{a:S7.a,b:S7.b,c:S7.c,d:S7.d,e:S7.e,f:S7.f,g:[6,42,19,42],h:[25,42,38,42],i:[10,10,20,38],j:[22,8,22,38],k:[34,10,24,38],l:[10,74,20,46],m:[22,46,22,76],n:[34,74,24,46]},
-16:{a:[6,6,19,6],b:[25,6,38,6],c:S7.b,d:S7.c,e:[25,78,38,78],f:[6,78,19,78],g:[6,42,6,78],h:[6,6,6,42],i:[6,42,19,42],j:[25,42,38,42],k:[10,10,20,38],l:[22,8,22,38],m:[34,10,24,38],n:[10,74,20,46],o:[22,46,22,76],p:[34,74,24,46]}};
+const SEGS={
+  7:{...S7},
+  9:{...S7,h:[22,8,22,40],i:[22,44,22,76]},
+  14:{a:S7.a,b:S7.b,c:S7.c,d:S7.d,e:S7.e,f:S7.f,g:[6,42,19,42],h:[25,42,38,42],i:[10,10,20,38],j:[22,8,22,38],k:[34,10,24,38],l:[10,74,20,46],m:[22,46,22,76],n:[34,74,24,46]},
+  16:{a:[6,6,19,6],b:[25,6,38,6],c:S7.b,d:S7.c,e:[25,78,38,78],f:[6,78,19,78],g:[6,42,6,78],h:[6,6,6,42],i:[6,42,19,42],j:[25,42,38,42],k:[10,10,20,38],l:[22,8,22,38],m:[34,10,24,38],n:[10,74,20,46],o:[22,46,22,76],p:[34,74,24,46]}
+};
 const ML=[7,9,14,16],SW={7:5,9:5,14:4,16:4};
 const IDS=m=>Object.keys(SEGS[m]);
 const sortm=(s,m)=>IDS(m).filter(k=>s.includes(k)).join("");
@@ -118,23 +120,21 @@ function okLig(o,m){const r={};Object.keys(o||{}).forEach(q=>{const v=o[q];const
 function load(o,m){const r={};Object.keys(o||{}).forEach(k=>{if([...k].length===1)r[canon(k)]=sortm(String(o[k]),m)});return r}
 let mode=7,TT={},T,LG={7:{},9:{},14:{},16:{}},selLig=null;
 ML.forEach(m=>TT[m]={...DEFS[m]});
-try{const s=JSON.parse(localStorage.getItem("sevenseg4")||"null");if(s){if(ML.includes(s.mode))mode=s.mode;ML.forEach(m=>{TT[m]={...DEFS[m],...load(s.tabs&&s.tabs[m],m)};LG[m]=okLig(s.ligs&&s.ligs[m],m)});if(s.v!==5)ML.forEach(m=>{delete TT[m]["🟡"];delete TT[m]["記"]})}}catch(e){}
+try{const s=JSON.parse(localStorage.getItem("sevenseg4")||"null");if(s){if(ML.includes(+s.mode))mode=+s.mode;ML.forEach(m=>{TT[m]={...DEFS[m],...load(s.tabs&&s.tabs[m],m)};LG[m]=okLig(s.ligs&&s.ligs[m],m)});if(s.v!==5)ML.forEach(m=>{delete TT[m]["🟡"];delete TT[m]["記"]})}}catch(e){}
 T=TT[mode];
 const save=()=>{try{localStorage.setItem("sevenseg4",JSON.stringify({v:5,mode,tabs:TT,ligs:LG}))}catch(e){}};
 const msg=t=>{$("msg").textContent=t};
 const esc=c=>c.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 function svg(s){const G=SEGS[mode];return '<svg viewBox="0 -14 44 108" aria-hidden="true">'+[...s].filter(k=>G[k]).map(k=>{const p=G[k];return `<line x1="${p[0]}" y1="${p[1]}" x2="${p[2]}" y2="${p[3]}" stroke="currentColor" stroke-width="${SW[mode]}" stroke-linecap="square"/>`}).join("")+'</svg>'}
-const EDGE={7:["",""],9:["",""],14:["",""],16:["",""]};
 const RT={7:{b:"f",c:"e"},9:{b:"f",c:"e"},14:{b:"f",c:"e"},16:{c:"h",d:"g"}};
 const twin=(v,c,k)=>{if(RT[mode][k]&&c<v.length-1)return[c+1,RT[mode][k]];for(const r in RT[mode])if(RT[mode][r]===k&&c>0)return[c-1,r];return null};
 const onAt=(v,c,k)=>{const t=twin(v,c,k);return v[c].includes(k)||(t?v[t[0]].includes(t[1]):false)};
-const stripE=(t,i)=>[...t].filter(k=>!EDGE[mode][i].includes(k)).join("");
 function svg2(c2){const G=SEGS[mode],ln=(k,dx)=>{const p=G[k];return `<line x1="${p[0]+dx}" y1="${p[1]}" x2="${p[2]+dx}" y2="${p[3]}" stroke="currentColor" stroke-width="${SW[mode]}" stroke-linecap="square"/>`};
- return '<svg viewBox="0 -14 '+(44+32*(c2.length-1))+' 108" aria-hidden="true">'+c2.map((t,i)=>[...t].filter(k=>G[k]&&!EDGE[mode][i].includes(k)).map(k=>ln(k,i*32)).join("")).join("")+'</svg>'}
+ return '<svg viewBox="0 -14 '+(44+32*(c2.length-1))+' 108" aria-hidden="true">'+c2.map((t,i)=>[...t].filter(k=>G[k]).map(k=>ln(k,i*32)).join("")).join("")+'</svg>'}
 function look(c){const k=canon(c);if(T[k]!==undefined)return T[k];const l=c.toLowerCase();return T[l]!==undefined?T[l]:null}
 function line(str,el){el.innerHTML="";const a=[...str],lg=LG[mode];for(let i=0;i<a.length;i++){const c=a[i];
  if(c==="\n"){el.insertAdjacentHTML("beforeend",'<i class="br"></i>');continue}
- if(c===" "||c==="　"){el.insertAdjacentHTML("beforeend",'<i class="sp"></i>');continue}
+ if(c===" "||c===" "){el.insertAdjacentHTML("beforeend",'<i class="sp"></i>');continue}
  let hit=null;for(const n of [3,2]){if(a.length-i>=n){const q=a.slice(i,i+n).join("");if(lg[q]){hit=[q,n];break}}}
  if(hit){el.insertAdjacentHTML("beforeend",svg2(lg[hit[0]]));i+=hit[1]-1;continue}
  const s=look(c);el.insertAdjacentHTML("beforeend",s===null?'<span style="align-self:center;color:var(--sub)">'+esc(c)+'</span>':svg(s))}}
@@ -162,9 +162,9 @@ function drawEd(){
  big.style.height="";big.setAttribute("viewBox","0 -14 44 108");
  if(sel===null){big.innerHTML="";return}
  const s=T[canon(sel)]||"",G=SEGS[mode];
- big.innerHTML=IDS(mode).map(k=>{const p=G[k];return `<line class="seg${s.includes(k)?" on":""}" data-k="${k}" x1="${p[0]}" y1="${p[1]}" x2="${p[2]}" y2="${p[3]}" tabindex="0" role="switch" aria-checked="${s.includes(k)}" aria-label="線 ${k}"/>`}).join("");
+ big.innerHTML=IDS(mode).map(k=>{const p=G[k];return `<line class="seg${s.includes(k)?" on":""}" data-k="${k}" data-cell="0" x1="${p[0]}" y1="${p[1]}" x2="${p[2]}" y2="${p[3]}" tabindex="0" role="switch" aria-checked="${s.includes(k)}" aria-label="線 ${k}"/>`}).join("");
  const g=GROUPS.find(g=>g.includes(sel));
- $("cur").textContent="編集中："+sel+"（"+(s||"なし")+"）"+(g?"　共通："+g.join(" "):"");
+ $("cur").textContent="編集中："+sel+"（"+(s||"なし")+"）"+(g?" 共通："+g.join(" "):"");
 }
 function render(){$("out").style.setProperty("--h",$("sz").value+"px");line($("src").value,$("out"));line("my name is",$("hero"))}
 function all(){drawModes();drawGrid();drawLig();drawFree();drawEd();render()}
@@ -183,7 +183,7 @@ $("del").onclick=()=>{if(sel===null)return;const k=canon(sel);if(k in D7||[...OR
 $("ladd").onclick=()=>{const a=[...$("lseq").value.trim()];if(a.length<2||a.length>3){msg("並びは2〜3文字で入力してください");return}const q=a.join("");if(!LG[mode][q])LG[mode][q]=a.map(ch=>T[canon(ch)]||"");selLig=q;sel=null;$("lseq").value="";save();msg("");all()};
 $("ldel").onclick=()=>{if(selLig===null)return;delete LG[mode][selLig];selLig=null;save();all()};
 $("rst").onclick=()=>{TT[mode]={...DEFS[mode]};T=TT[mode];sel=null;save();all()};
-$("imp").onclick=()=>{try{const o=JSON.parse($("json").value);let m=mode,g=o;if(o&&o.glyphs){g=o.glyphs;if(ML.includes(+o.segments))m=+o.segments}
+$("imp").onclick=()=>{try{const o=JSON.parse($("json").value);let m=7,g=o;if(o&&o.glyphs){g=o.glyphs;m=ML.includes(+o.segments)?+o.segments:7}
  mode=m;TT[m]={...DEFS[m],...load(g,m)};T=TT[m];if(o.ligatures)LG[m]=okLig(o.ligatures,m);selLig=null;save();msg("読み込みました（"+m+"セグ）");all()}catch(e){msg("JSONを読み込めませんでした")}};
 async function dl(name,data){
  let d=null;try{d=(typeof claude!=="undefined")?await claude.use("downloads"):null}catch(e){}
