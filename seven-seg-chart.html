@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>独自7セグ文字表</title>
+<style>
+:root{--bg:#f6f5f1;--ink:#2a2a2c;--sub:#6d6d72;--rule:#c9d6e2;--card:#fff;--acc:#2f6fa8;--line:#d7d7d2;--red:#d32f2f;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181a;--ink:#e8e8ea;--sub:#9a9aa0;--rule:#2a3440;--card:#1f2124;--acc:#7fb4e6;--line:#34363a;--red:#ff6b6b}}
+:root[data-theme="dark"]{--bg:#17181a;--ink:#e8e8ea;--sub:#9a9aa0;--rule:#2a3440;--card:#1f2124;--acc:#7fb4e6;--line:#34363a;--red:#ff6b6b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "Hiragino Sans","Yu Gothic",system-ui,sans-serif;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 31px,var(--rule) 31px,var(--rule) 32px)}
+main{max-width:920px;margin:0 auto;padding:28px 18px 48px}
+h1{margin:0 0 4px;font-size:1.5rem}
+h2{margin:40px 0 10px;font-size:1.1rem}
+p.s{color:var(--sub);margin:0 0 14px;max-width:62ch}
+.hero{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 6px}.hero svg{height:64px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:10px}
+.grid.sm{grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px}
+.cell{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px 4px 6px;text-align:center;cursor:pointer;font:inherit;color:var(--ink)}
+.cell svg{height:56px;display:block;margin:0 auto 2px}.sm .cell svg{height:38px}
+.cell span{font-size:.8rem;color:var(--sub)}
+.cell.dup{border-color:var(--red)}.cell.dup svg,.cell.dup span{color:var(--red)}
+.cell[aria-pressed="true"]{outline:2px solid var(--acc)}
+.cell:focus-visible,button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+textarea,input[type=text]{font:inherit;padding:8px 10px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px}
+textarea{width:100%;min-height:76px}
+.out{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:14px;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:6px;min-height:100px}
+.out svg{height:var(--h,56px)}.out .sp{width:calc(var(--h,56px)*.4)}.out .br{flex-basis:100%;height:0}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:10px}
+button.b{font:inherit;padding:6px 14px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;cursor:pointer}
+.ed{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px}
+.ed svg.big{height:200px;overflow:visible}
+.ed .seg{cursor:pointer;stroke-width:9;stroke-linecap:round;stroke:var(--line)}.ed .seg.on{stroke:var(--ink)}.ed .seg:focus-visible{stroke:var(--acc)}
+.ed .t{flex:1;min-width:220px}
+#msg{min-height:1.7em;color:var(--acc)}
+footer{margin-top:48px;color:var(--sub);font-size:.85rem}
+</style>
+</head>
+<body>
+<main>
+<h1>独自7セグ文字表</h1>
+<p class="s">手書きの7セグ文字を、そのままタイプできる表にしました。すべて7本の線（a〜g）だけで構成しています。</p>
+<div class="hero" id="hero" aria-label="my name is"></div>
+<div id="msg" role="status" aria-live="polite"></div>
+
+<h2>文字表</h2>
+<p class="s">文字をタップすると、下の編集欄で線を変更できます。赤い文字は、ほかの文字と線が同じです。<code>/</code>と<code>÷</code>、<code>\</code>と通貨記号（¥ $ € £ ¢ ₩）は、それぞれ同じ字形に統一していて、どちらを編集しても両方変わります。</p>
+<div class="grid" id="grid"></div>
+<div class="row"><input type="text" id="nc" maxlength="2" size="4" placeholder="文字" aria-label="追加する文字"><button class="b" id="add">文字を追加</button><button class="b" id="del">選んだ文字を削除</button></div>
+
+<h2>変換</h2>
+<textarea id="src" aria-label="変換するテキスト">my name is
+2026/11/14 03:50</textarea>
+<div class="row"><label>大きさ <input type="range" id="sz" min="24" max="120" value="56"></label></div>
+<div class="out" id="out" aria-live="polite"></div>
+
+<h2>編集</h2>
+<div class="ed">
+<svg class="big" id="big" viewBox="0 -14 44 108" role="group" aria-label="線の切り替え"></svg>
+<div class="t">
+<p class="s" id="cur">文字を選んでください</p>
+<p class="s">線をクリックでオン・オフ。変更はこのブラウザに保存されます。</p>
+<div class="row"><button class="b" id="rst">元に戻す</button></div>
+</div>
+</div>
+
+<h2>空いている組み合わせ</h2>
+<p class="s" id="freeinfo"></p>
+<p class="s">文字を選んでから組み合わせをタップすると、その文字に割り当てます。</p>
+<div class="grid sm" id="free"></div>
+
+<h2>書き出し</h2>
+<div class="row">
+<label>フォント名 <input type="text" id="fam" value="MySevenSeg" size="16"></label>
+<button class="b" id="exj">JSONファイル</button>
+<button class="b" id="ext">TTFファイル</button>
+</div>
+<p class="s">TTFは、すべての文字（/ ÷ ¥ などは共通の字形、英大文字は小文字と同じ字形）を含みます。OTFは、保存できる形式に含まれていないため出力できません。</p>
+<textarea id="json" style="margin-top:10px;min-height:90px" aria-label="JSON" spellcheck="false" placeholder="ここにJSONを貼って読み込めます"></textarea>
+<div class="row"><button class="b" id="imp">JSONを読み込む</button></div>
+
+<footer>created by fuwainene&amp;claude</footer>
+</main>
+<script>
+const SEG={a:[6,6,38,6],b:[38,6,38,42],c:[38,42,38,78],d:[6,78,38,78],e:[6,42,6,78],f:[6,6,6,42],g:[6,42,38,42]};
+const L7="abcdefg";
+const GROUPS=[["/","÷"],["\\","¥","$","€","£","¢","₩"]];
+const canon=c=>{for(const g of GROUPS)if(g.includes(c))return g[0];return c};
+const sort7=s=>[...L7].filter(k=>s.includes(k)).join("");
+const ORDER="abc def ghi jkl mMμ nop qrs tTu vwx yz0 123 456 789 !?\" #@& '() +-× ÷/\\ =≠ :;. ,*¥$ €£¢ ₩_|".replace(/ /g,"");
+const DEF={"0":"abcdef","1":"abc","2":"abdeg","3":"abcdg","4":"bcfg","5":"acdfg","6":"acdefg","7":"abcf","8":"abcdefg","9":"abcdfg","a":"abcdeg","b":"cdefg","c":"deg","d":"bcdeg","e":"abdefg","f":"aefg","g":"acdef","h":"cefg","i":"acg","j":"acd","k":"acefg","l":"def","m":"aceg","M":"abcef","μ":"befg","n":"ceg","o":"cdeg","p":"abefg","q":"abcfg","r":"eg","s":"bdfg","t":"defg","T":"abdef","u":"cde","v":"acde","w":"acdeg","x":"bcefg","y":"bcdfg","z":"abdf","!":"adf","?":"abd","\"":"bf","#":"abde","@":"abef","&":"abcde","'":"b","(":"adef",")":"abcd","+":"bfg","-":"g","×":"bcdef","=":"ag","≠":"aeg",":":"be",";":"bde",".":"ae",",":"ade","/":"beg","\\":"abcdf","*":"abfg","_":"d","|":"ef"};
+function load(o){const r={};Object.keys(o).forEach(k=>{if([...k].length===1)r[canon(k)]=sort7(String(o[k]))});return r}
+let T={...DEF};
+try{const s=localStorage.getItem("sevenseg2");if(s)T={...DEF,...load(JSON.parse(s))}}catch(e){}
+const save=()=>{try{localStorage.setItem("sevenseg2",JSON.stringify(T))}catch(e){}};
+const $=id=>document.getElementById(id);
+const msg=t=>{$("msg").textContent=t};
+const esc=c=>c.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+function svg(s){return '<svg viewBox="0 -14 44 108" aria-hidden="true">'+[...s].filter(k=>SEG[k]).map(k=>{const p=SEG[k];return `<line x1="${p[0]}" y1="${p[1]}" x2="${p[2]}" y2="${p[3]}" stroke="currentColor" stroke-width="5" stroke-linecap="square"/>`}).join("")+'</svg>'}
+function look(c){const k=canon(c);if(T[k]!==undefined)return T[k];const l=c.toLowerCase();return T[l]!==undefined?T[l]:null}
+function line(str,el){el.innerHTML="";[...str].forEach(c=>{
+ if(c==="\n"){el.insertAdjacentHTML("beforeend",'<i class="br"></i>');return}
+ if(c===" "||c==="　"){el.insertAdjacentHTML("beforeend",'<i class="sp"></i>');return}
+ const s=look(c);el.insertAdjacentHTML("beforeend",s===null?'<span style="align-self:center;color:var(--sub)">'+esc(c)+'</span>':svg(s))})}
+let sel=null;
+const chars=()=>{const b=[...ORDER];return b.concat(Object.keys(T).filter(k=>!b.includes(k)))};
+function drawGrid(){
+ const cnt={};Object.keys(T).forEach(k=>{const v=T[k];if(v)cnt[v]=(cnt[v]||0)+1});
+ $("grid").innerHTML=chars().map(c=>{const v=T[canon(c)]||"";return `<button class="cell${v&&cnt[v]>1?" dup":""}" data-c="${esc(c)}" aria-pressed="${c===sel}" aria-label="${esc(c)}">${svg(v)}<span>${esc(c)}</span></button>`}).join("");
+}
+function drawFree(){
+ const used=new Set(Object.values(T).filter(Boolean)),list=[];
+ for(let m=1;m<128;m++){const s=[...L7].filter((k,i)=>m>>i&1).join("");if(!used.has(s))list.push(s)}
+ list.sort((x,y)=>x.length-y.length||(x<y?-1:1));
+ $("freeinfo").textContent="空き "+list.length+" / 127 通り（使用中 "+(127-list.length)+"）";
+ $("free").innerHTML=list.map(s=>`<button class="cell" data-s="${s}" aria-label="${s}">${svg(s)}<span>${s}</span></button>`).join("");
+}
+function drawEd(){
+ const big=$("big");if(sel===null){big.innerHTML="";return}
+ const s=T[canon(sel)]||"";
+ big.innerHTML=[...L7].map(k=>{const p=SEG[k];return `<line class="seg${s.includes(k)?" on":""}" data-k="${k}" x1="${p[0]}" y1="${p[1]}" x2="${p[2]}" y2="${p[3]}" tabindex="0" role="switch" aria-checked="${s.includes(k)}" aria-label="線 ${k}"/>`}).join("");
+ const g=GROUPS.find(g=>g.includes(sel));
+ $("cur").textContent="編集中："+sel+"（"+(s||"なし")+"）"+(g?"　共通："+g.join(" "):"");
+}
+function render(){$("out").style.setProperty("--h",$("sz").value+"px");line($("src").value,$("out"));line("my name is",$("hero"))}
+function all(){drawGrid();drawFree();drawEd();render()}
+$("grid").addEventListener("click",e=>{const b=e.target.closest(".cell");if(!b)return;sel=b.dataset.c;drawGrid();drawEd()});
+$("free").addEventListener("click",e=>{const b=e.target.closest(".cell");if(!b)return;if(sel===null){msg("先に文字表の文字を選んでください");return}T[canon(sel)]=b.dataset.s;save();msg("");all()});
+function tog(k){if(sel===null)return;const c=canon(sel);let s=T[c]||"";s=s.includes(k)?s.replace(k,""):s+k;T[c]=sort7(s);save();all()}
+$("big").addEventListener("click",e=>{const k=e.target.dataset&&e.target.dataset.k;if(k)tog(k)});
+$("big").addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.dataset.k){e.preventDefault();tog(e.target.dataset.k)}});
+$("src").addEventListener("input",render);$("sz").addEventListener("input",render);
+$("add").onclick=()=>{const c=[...$("nc").value.trim()][0];if(!c){msg("追加する文字を入力してください");return}const k=canon(c);if(!(k in T))T[k]="";sel=c;$("nc").value="";save();msg("");all()};
+$("del").onclick=()=>{if(sel===null)return;const k=canon(sel);if(k in DEF||[...ORDER].includes(sel)){msg("もとの表にある文字は削除できません（線を空にできます）");return}delete T[k];sel=null;save();msg("");all()};
+$("rst").onclick=()=>{T={...DEF};sel=null;save();all()};
+$("imp").onclick=()=>{try{T={...DEF,...load(JSON.parse($("json").value))};save();msg("読み込みました");all()}catch(e){msg("JSONを読み込めませんでした")}};
+async function dl(name,data){try{const d=(typeof claude!=="undefined")?await claude.use("downloads"):null;if(!d){msg("この画面では保存できません");return}await d.save({filename:name,data});msg("保存しました")}catch(e){msg(e&&e.code==="declined"?"キャンセルしました":"保存できませんでした")}}
+$("exj").onclick=()=>dl("seven-seg.json",JSON.stringify(T,null,1));
+class B{constructor(){this.a=[]}u8(v){this.a.push(v&255);return this}u16(v){return this.u8(v>>8).u8(v)}u32(v){return this.u16(v>>>16).u16(v)}raw(x){for(const v of x)this.a.push(v);return this}pad(){while(this.a.length%4)this.a.push(0);return this}}
+function buildTTF(fam){
+ const R={a:[100,720,500,800],b:[420,400,500,800],c:[420,0,500,400],d:[100,0,500,80],e:[100,0,180,400],f:[100,400,180,800],g:[100,360,500,440]};
+ const keys=Object.keys(T).filter(k=>[...k].length===1),gid={},gl=[[],[]];
+ keys.forEach(k=>{gid[k]=gl.length;gl.push([...(T[k]||"")].filter(s=>R[s]).map(s=>{const[a,b,c,d]=R[s];return[[a,b],[a,d],[c,d],[c,b]]}))});
+ const cm={32:1};
+ const add=(ch,g)=>{const cp=ch.codePointAt(0);if(cp<0xFFFF&&cp!==32)cm[cp]=g};
+ keys.forEach(k=>add(k,gid[k]));
+ GROUPS.forEach(g=>{if(gid[g[0]]!==undefined)g.slice(1).forEach(c=>add(c,gid[g[0]]))});
+ for(let i=0;i<26;i++){const u=String.fromCharCode(65+i),l=String.fromCharCode(97+i);if(!(u in gid)&&gid[l]!==undefined)add(u,gid[l])}
+ const NG=gl.length,glyf=new B(),loca=new B(),hmtx=new B();
+ gl.forEach((cs,i)=>{loca.u32(glyf.a.length);
+  if(cs.length){const pts=cs.flat(),xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
+   glyf.u16(cs.length).u16(Math.min(...xs)).u16(Math.min(...ys)).u16(Math.max(...xs)).u16(Math.max(...ys));
+   cs.forEach((c,j)=>glyf.u16(j*4+3));glyf.u16(0);pts.forEach(()=>glyf.u8(1));
+   let p=0;pts.forEach(q=>{glyf.u16(q[0]-p);p=q[0]});p=0;pts.forEach(q=>{glyf.u16(q[1]-p);p=q[1]});glyf.pad()}
+  hmtx.u16(i===1?400:600).u16(cs.length?100:0)});
+ loca.u32(glyf.a.length);
+ const head=new B().u32(0x00010000).u32(0x00010000).u32(0).u32(0x5F0F3CF5).u16(3).u16(1000).u32(0).u32(0).u32(0).u32(0).u16(100).u16(0).u16(500).u16(800).u16(0).u16(8).u16(2).u16(1).u16(0);
+ const hhea=new B().u32(0x00010000).u16(800).u16(-200).u16(0).u16(600).u16(100).u16(100).u16(500).u16(1).u16(0).u16(0).u32(0).u32(0).u16(0).u16(NG);
+ const maxp=new B().u32(0x00010000).u16(NG).u16(28).u16(7).u16(0).u16(0).u16(1).u16(0).u16(0).u16(0).u16(0).u16(0).u16(0).u16(0).u16(0);
+ const codes=Object.keys(cm).map(Number).sort((x,y)=>x-y),sc=codes.length+1;
+ let e=0;while((2<<e)<=sc)e++;const sr=2*(1<<e);
+ const f4=new B().u16(4).u16(16+sc*8).u16(0).u16(sc*2).u16(sr).u16(e).u16(sc*2-sr);
+ codes.forEach(c=>f4.u16(c));f4.u16(0xFFFF).u16(0);codes.forEach(c=>f4.u16(c));f4.u16(0xFFFF);
+ codes.forEach(c=>f4.u16(cm[c]-c));f4.u16(1);for(let i=0;i<sc;i++)f4.u16(0);
+ const cmap=new B().u16(0).u16(1).u16(3).u16(1).u32(12).raw(f4.a);
+ const os2=new B().u16(0).u16(600).u16(400).u16(5).u16(0).u16(650).u16(600).u16(0).u16(75).u16(650).u16(600).u16(0).u16(350).u16(50).u16(300).u16(0).raw(new Array(10).fill(0)).u32(0).u32(0).u32(0).u32(0).raw([0,0,0,0]).u16(0x40).u16(32).u16(0xFFFD).u16(800).u16(-200).u16(0).u16(800).u16(200);
+ const ps=fam.replace(/[^A-Za-z0-9]/g,"")||"MySevenSeg";
+ const nm=[[1,fam],[2,"Regular"],[4,fam],[6,ps]],nb=new B();
+ nb.u16(0).u16(nm.length).u16(6+nm.length*12);let off=0;
+ nm.forEach(([id,s])=>{nb.u16(3).u16(1).u16(0x409).u16(id).u16(s.length*2).u16(off);off+=s.length*2});
+ nm.forEach(([id,s])=>{for(const ch of s)nb.u16(ch.charCodeAt(0))});
+ const post=new B().u32(0x00030000).u32(0).u16(-100).u16(50).u32(0).u32(0).u32(0).u32(0).u32(0);
+ const tabs=[["OS/2",os2],["cmap",cmap],["glyf",glyf],["head",head],["hhea",hhea],["hmtx",hmtx],["loca",loca],["maxp",maxp],["name",nb],["post",post]];
+ const sum=a=>{let s=0;for(let i=0;i<a.length;i+=4)s=(s+((a[i]<<24|a[i+1]<<16|a[i+2]<<8|a[i+3])>>>0))>>>0;return s};
+ tabs.forEach(t=>{t[2]=t[1].a.length;t[1].pad()});
+ const n=tabs.length;let es=0;while((2<<es)<=n)es++;
+ const out=new B().u32(0x00010000).u16(n).u16(16<<es).u16(es).u16(n*16-(16<<es));
+ let o=12+n*16;
+ tabs.forEach(([tag,b,len])=>{for(const ch of tag)out.u8(ch.charCodeAt(0));out.u32(sum(b.a)).u32(o).u32(len);o+=b.a.length});
+ tabs.forEach(t=>out.raw(t[1].a));
+ const ho=12+n*16+tabs.slice(0,3).reduce((s,t)=>s+t[1].a.length,0);
+ const adj=(0xB1B0AFBA-sum(out.a))>>>0;
+ out.a[ho+8]=adj>>>24;out.a[ho+9]=adj>>16&255;out.a[ho+10]=adj>>8&255;out.a[ho+11]=adj&255;
+ return new Uint8Array(out.a);
+}
+$("ext").onclick=()=>{try{const f=$("fam").value.trim()||"MySevenSeg";dl(f.replace(/[^\w.-]/g,"")+".ttf",buildTTF(f))}catch(e){msg("TTFを作れませんでした")}};
+all();
+</script>
+</body>
+</html>
