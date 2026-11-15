@@ -43,6 +43,9 @@ button.b{font:inherit;padding:6px 14px;border:1px solid var(--line);background:v
 .ed .t{flex:1;min-width:220px}
 label.chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:var(--ink)}
 #msg{min-height:1.7em;color:var(--acc)}
+.danger{border:2px solid var(--red);border-radius:8px;padding:14px 16px;background:var(--card)}
+.danger p{margin-bottom:10px}
+button.dng{border-color:var(--red);color:var(--red);font-weight:600}
 footer{margin-top:48px;color:var(--sub);font-size:.85rem}
 </style>
 </head>
@@ -60,7 +63,7 @@ footer{margin-top:48px;color:var(--sub);font-size:.85rem}
 <div class="row"><input type="text" id="nc" maxlength="2" size="4" placeholder="文字" aria-label="追加する文字"><button class="b" id="add">文字を追加</button><button class="b" id="del">選んだ文字を削除</button></div>
 
 <h2>合字（マトリクス配置）</h2>
-<p class="s">横（1〜4列）と縦（1〜3行）のサイズを選んで、最大4×3マス（田＝2×2など）の繋がった1つの字形を作れます。作った直後は各マスの字形が並び、セルを別々に編集できます。境界線の連動も選べます。変換とTTFに反映されます。</p>
+<p class="s">横（1〜4列）と縦（1〜3行）のサイズを選んで、最大4×3マス（田＝2×2など）の繋がった1つの字形を作れます。作った直後は各マスの字形が並び、セルを別々に編集できます。セルの境目は、左右の縦線も上下の横線も、重なって1本の線になります。境界線の連動も選べます。変換とTTFに反映されます。</p>
 <div class="grid lg" id="lgrid"></div>
 <div class="row">
   <input type="text" id="lseq" size="6" maxlength="4" placeholder="文字/コード" aria-label="合字のキー">
@@ -88,7 +91,7 @@ footer{margin-top:48px;color:var(--sub);font-size:.85rem}
 <div class="row" id="ligLinkRow" hidden>
   <label class="chk"><input type="checkbox" id="ligSync" checked> セル境界の線を連動する</label>
 </div>
-<div class="row"><button class="b" id="rst">このセグメント数の表を元に戻す</button></div>
+<div class="row"><button class="b" id="clr">この文字をクリア</button></div>
 </div>
 </div>
 
@@ -108,6 +111,12 @@ footer{margin-top:48px;color:var(--sub);font-size:.85rem}
 <textarea id="json" style="margin-top:10px;min-height:90px" aria-label="JSON" spellcheck="false" placeholder="ここにJSONを貼って読み込めます（書き出したJSONも、以前の7セグのJSONも使えます）"></textarea>
 <div class="row"><button class="b" id="imp">JSONを読み込む</button></div>
 
+<h2>危険な操作</h2>
+<div class="danger">
+<p class="s">全セグメント数（7・9・14・16）の字形、合字、連携、削除した文字を、すべて初期値に戻します。追加した文字と、編集した内容は消えます。</p>
+<button class="b dng" id="rstall">全初期化</button>
+</div>
+
 <footer>created by fuwainene&amp;claude</footer>
 </main>
 <script>
@@ -126,11 +135,15 @@ const M16={a:"ab",b:"c",c:"d",d:"ef",e:"g",f:"h",g:"ij"};
 const CONV={7:s=>s,9:s=>s,14:s=>s.replace("g","gh"),16:s=>[...s].map(k=>M16[k]).join("")};
 const GROUPS=[["/","÷"],["¥","$","€","£","¢","₩"]];
 const ORDER="abc def ghi jkl mMμ nop qrs tTu vwx yz0 123 456 789 !?\" #@& '() +-× ÷/\\ =≠ :;. ,*¥$ €£¢ ₩_|".replace(/ /g,"");
-const D7={"0":"abcdef","1":"abc","2":"abdeg","3":"abcdg","4":"bcfg","5":"acdfg","6":"acdefg","7":"abcf","8":"abcdefg","9":"abcdfg","a":"abcdeg","b":"cdefg","c":"deg","d":"bcdeg","e":"abdefg","f":"aefg","g":"adfg","h":"cefg","i":"acg","j":"bcdf","k":"acefg","l":"def","m":"aceg","M":"abcef","μ":"befg","n":"ceg","o":"cdeg","p":"abefg","q":"abcfg","r":"eg","s":"bdfg","t":"defg","T":"abdef","u":"cde","v":"acde","w":"acdeg","x":"acdf","y":"bcdfg","z":"abdf","!":"cef","?":"abeg","\"":"bf","#":"abde","@":"abef","&":"abcde","'":"b","(":"bdeg",")":"cdfg","+":"bfg","-":"g","×":"bcdef","=":"dg","≠":"bdg",":":"be",";":"cf",".":"e",",":"c","/":"beg","\\":"cfg","¥":"abcdf","*":"abfg","_":"d","|":"bc","[":"aef","]":"bcd","`":"f","{":"bcg","}":"efg","‘":"fg","’":"ab","~":"a","^":"abf","≡":"adg","・":"ae","○":"abdg","●":"abdfg","※":"bcef","Q":"bcdefg","A":"abcefg","E":"adefg","G":"acdef","…":"ce","—":"bce","C":"adef","R":"abceg","±":"bdefg","B":"adeg","H":"bcefg","J":"bcde","O":"abcd","I":"ef"};
+const D7={"0":"abcdef","1":"abc","2":"abdeg","3":"abcdg","4":"bcfg","5":"acdfg","6":"acdefg","7":"abcf","8":"abcdefg","9":"abcdfg","a":"abcdeg","b":"cdefg","c":"deg","d":"bcdeg","e":"abdefg","f":"aefg","g":"adfg","h":"cefg","i":"acg","j":"bcdf","k":"acefg","l":"def","m":"aceg","M":"abcef","μ":"befg","n":"ceg","o":"cdeg","p":"abefg","q":"abcfg","r":"eg","s":"bdfg","t":"defg","T":"abdef","u":"cde","v":"acde","w":"acdeg","x":"acdf","y":"bcdfg","z":"abdf","!":"cef","?":"abeg","\"":"bf","#":"abde","@":"abef","&":"abcde","'":"b","(":"af",")":"cd","+":"bfg","-":"g","×":"bcdef","÷":"beg","/":"beg","\\":"cfg","=":"dg","≠":"bdg",":":"be",";":"cf",".":"e",",":"c","*":"abg","¥":"abcdf","$":"acfg","€":"abcdf","£":"abcdf","¢":"afg","₩":"bdef","_":"d","|":"bc","[":"aef","]":"bcd","`":"f","{":"bcg","}":"efg","‘":"fg","’":"ab","~":"a","^":"abf","≡":"adg","・":"ae","○":"","●":"abdfg","※":"bcef","Q":"bcdefg","A":"abcefg","E":"adefg","G":"acdef","…":"ce","—":"bce","C":"adef","R":"abceg","±":"bdefg","B":"acdg","H":"bcefg","J":"bcde","O":"abcd","I":"ef","¿":"cdfg","¡":"bcf","%":"acef","√":"bceg","≈":"ag","♀":"abcg","♂":"cdef","♪":"bdeg","°":"abfg","π":"ace"};
 const DEFS={};ML.forEach(m=>{DEFS[m]={};Object.keys(D7).forEach(k=>DEFS[m][k]=CONV[m](D7[k]))});
 const isObj=v=>v&&typeof v==="object"&&!Array.isArray(v);
 
-let mode=7,TT={},T,LG={7:{},9:{},14:{},16:{}},UL={7:[],9:[],14:[],16:[]},selLig=null,ligEdgeSync=true;
+const DEFLIG_RAW={"fi":{"cols":2,"rows":1,"cells":["aefg","bc"]},"ffi":{"cols":3,"rows":1,"cells":["aefg","aefg","bc"]},"co":{"cols":2,"rows":1,"cells":["cdg","cdeg"]},"fl":{"cols":2,"rows":1,"cells":["aefg","bcd"]},"ll":{"cols":2,"rows":1,"cells":["bef","bcdf"]},"II":{"cols":2,"rows":1,"cells":["ef","ef"]},"III":{"cols":3,"rows":1,"cells":["ef","ef","ef"]},"://":{"cols":3,"rows":1,"cells":["be","b","bce"]},"[:":{"cols":2,"rows":1,"cells":["abdef","adef"]},":]":{"cols":2,"rows":1,"cells":["abcd","abcdef"]},"[.":{"cols":2,"rows":1,"cells":["bc","adef"]},"].":{"cols":2,"rows":1,"cells":["abcd","ef"]},"[:-":{"cols":3,"rows":1,"cells":["abdef","adef","g"]},"-:]":{"cols":3,"rows":1,"cells":["g","abcd","abcde"]},"[.-":{"cols":3,"rows":1,"cells":["bc","adef","g"]},".-]":{"cols":3,"rows":1,"cells":["g","abcd","ef"]},"->":{"cols":2,"rows":1,"cells":["g","abcdg"]},"<-":{"cols":2,"rows":1,"cells":["adefg","g"]},"<->":{"cols":3,"rows":1,"cells":["adefg","g","abcdg"]},"^|":{"cols":2,"rows":1,"cells":["abcf","abef"]},"|v":{"cols":2,"rows":1,"cells":["bcde","cde"]},"v|":{"cols":2,"rows":1,"cells":["bcde","cdf"]},"|^":{"cols":2,"rows":1,"cells":["abcf","abf"]},"=>":{"cols":2,"rows":1,"cells":["dg","bdg"]},"=<":{"cols":2,"rows":1,"cells":["dfg","dg"]},"<=":{"cols":2,"rows":1,"cells":["dfg","dg"]},">=":{"cols":2,"rows":1,"cells":["dg","bdg"]},"www.":{"cols":3,"rows":1,"cells":["acdeg","acdeg","abe"]},"IIII":{"cols":4,"rows":1,"cells":["ef","ef","ef","ef"]},"!!":{"cols":2,"rows":1,"cells":["cf","cef"]},"!!!":{"cols":3,"rows":1,"cells":["cf","acdef","cef"]},"°c":{"cols":2,"rows":1,"cells":["abfg","deg"]},"°f":{"cols":2,"rows":1,"cells":["abfg","aefg"]},"°C":{"cols":2,"rows":1,"cells":["abfg","adef"]},"°F":{"cols":2,"rows":1,"cells":["abfg","aefg"]},"on":{"cols":2,"rows":1,"cells":["cdeg","ceg"]},"rd":{"cols":2,"rows":1,"cells":["eg","bcdeg"]},"oe":{"cols":2,"rows":1,"cells":["bcdeg","abefg"]},"ae":{"cols":2,"rows":1,"cells":["abcdeg","abdefg"]},"mail":{"cols":3,"rows":1,"cells":["aceg","abcdeg","abcg"]},"com":{"cols":3,"rows":1,"cells":["dg","cdeg","aceg"]},"nd":{"cols":2,"rows":1,"cells":["bceg","bcdeg"]}};
+const DEFUL=["¢", "₩", "$"];
+const cloneLG=m=>{const r={};Object.keys(DEFLIG_RAW).forEach(q=>{const v=DEFLIG_RAW[q];r[q]={cols:v.cols,rows:v.rows,cells:v.cells.map(c=>CONV[m](c))}});return r};
+let mode=7,TT={},T,LG={},UL={},selLig=null,ligEdgeSync=true,DX=[];
+ML.forEach(m=>{LG[m]=cloneLG(m);UL[m]=[...DEFUL]});
 
 const findGroup=c=>GROUPS.find(g=>g.includes(c))||null;
 const isUnlinked=(c,m=mode)=>Array.isArray(UL[m])&&UL[m].includes(c);
@@ -138,7 +151,7 @@ function canon(c,m=mode){
   const g=findGroup(c);
   if(!g)return c;
   if(isUnlinked(c,m))return c;
-  const head=g.find(ch=>!isUnlinked(ch,m));
+  const head=g.find(ch=>!isUnlinked(ch,m)&&!DX.includes(ch));
   return head!==undefined?head:c;
 }
 const activeGroup=(c,m=mode)=>{
@@ -176,15 +189,16 @@ function load(o,m){
 
 ML.forEach(m=>TT[m]={...DEFS[m]});
 try{
-  const s=JSON.parse(localStorage.getItem("sevenseg4")||"null");
+  const s=JSON.parse(localStorage.getItem("sevenseg6")||"null");
   if(isObj(s)){
     if(ML.includes(+s.mode))mode=+s.mode;
     if(typeof s.ligEdgeSync==="boolean")ligEdgeSync=s.ligEdgeSync;
+    if(Array.isArray(s.deleted))DX=s.deleted.filter(c=>typeof c==="string"&&[...c].length===1);
     ML.forEach(m=>{
       UL[m]=isObj(s.unlinked)&&Array.isArray(s.unlinked[m])?s.unlinked[m].filter(c=>typeof c==="string"&&[...c].length===1):[];
       const tab=isObj(s.tabs)?s.tabs[m]:null;
       const lig=isObj(s.ligs)?s.ligs[m]:null;
-      TT[m]={...DEFS[m],...load(tab,m)};
+      TT[m]={...DEFS[m],...load(tab,m)};DX.forEach(c=>{delete TT[m][c]});
       LG[m]=okLig(lig,m);
     });
   }
@@ -192,7 +206,7 @@ try{
 T=TT[mode];
 const save=()=>{
   try{
-    localStorage.setItem("sevenseg4",JSON.stringify({v:8,mode,tabs:TT,ligs:LG,unlinked:UL,ligEdgeSync}));
+    localStorage.setItem("sevenseg6",JSON.stringify({v:8,mode,tabs:TT,ligs:LG,unlinked:UL,ligEdgeSync,deleted:DX}));
   }catch(e){}
 };
 const msg=t=>{$("msg").textContent=t};
@@ -233,15 +247,16 @@ const onAt=(lig,c,k)=>{
 
 function svg2(lig){
   const G=SEGS[mode],cols=lig.cols,rows=lig.rows,cells=lig.cells;
-  const w=44+32*(cols-1),h=108+84*(rows-1);
+  const w=44+32*(cols-1),h=108+72*(rows-1);
   const ln=(k,dx,dy)=>{const p=G[k];return `<line x1="${p[0]+dx}" y1="${p[1]+dy}" x2="${p[2]+dx}" y2="${p[3]+dy}" stroke="currentColor" stroke-width="${SW[mode]}" stroke-linecap="square"/>`};
   return '<svg viewBox="0 -14 '+w+' '+h+'" aria-hidden="true">'+cells.map((t,i)=>{
-    const cx=(i%cols)*32,cy=Math.floor(i/cols)*84;
+    const cx=(i%cols)*32,cy=Math.floor(i/cols)*72;
     return [...t].filter(k=>G[k]).map(k=>ln(k,cx,cy)).join("");
   }).join("")+'</svg>';
 }
 
 function look(c){
+  if(DX.includes(c))return null;
   const k=canon(c);
   if(T[k]!==undefined)return T[k];
   const g=findGroup(c);
@@ -272,7 +287,7 @@ function line(str,el){
 }
 
 let sel=null,shown=300;
-const chars=()=>{const b=[...ORDER];return b.concat(Object.keys(T).filter(k=>!b.includes(k)))};
+const chars=()=>{const o=[...ORDER],b=o.filter(c=>!DX.includes(c));return b.concat(Object.keys(T).filter(k=>!o.includes(k)&&!DX.includes(k)))};
 function drawModes(){$("modes").innerHTML=ML.map(m=>`<button role="radio" aria-checked="${m===mode}" data-m="${m}">${m}セグ</button>`).join("")}
 function drawGrid(){
  const cnt={};
@@ -402,8 +417,8 @@ $("big").addEventListener("click",e=>{const k=e.target.dataset&&e.target.dataset
 $("big").addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.dataset.k){e.preventDefault();tog(e.target.dataset.k,+e.target.dataset.cell)}});
 $("src").addEventListener("input",render);$("sz").addEventListener("input",render);
 
-$("add").onclick=()=>{const c=[...$("nc").value.trim()][0];if(!c){msg("追加する文字を入力してください");return}const k=canon(c);ML.forEach(m=>{if(!(k in TT[m]))TT[m][k]=""});sel=c;$("nc").value="";save();msg("");all()};
-$("del").onclick=()=>{if(sel===null)return;const k=canon(sel);if(k in D7||[...ORDER].includes(sel)){msg("もとの表にある文字は削除できません（線を空にできます）");return}ML.forEach(m=>{delete TT[m][k]});sel=null;save();msg("");all()};
+$("add").onclick=()=>{const c=[...$("nc").value.trim()][0];if(!c){msg("追加する文字を入力してください");return}DX=DX.filter(x=>x!==c);const k=canon(c);ML.forEach(m=>{const d=DEFS[m][c];if(d!==undefined&&!(c in TT[m]))TT[m][c]=d;else if(!(k in TT[m]))TT[m][k]=""});sel=c;$("nc").value="";save();msg("");all()};
+$("del").onclick=()=>{if(sel===null){msg("先に文字表の文字を選んでください");return}const c=sel;if(!DX.includes(c))DX.push(c);ML.forEach(m=>{delete TT[m][c]});sel=null;save();msg("「"+c+"」を削除しました（同じ文字を追加すると戻せます。全初期化でも戻ります）");all()};
 
 $("ladd").onclick=()=>{
   const q=$("lseq").value.trim();
@@ -419,7 +434,19 @@ $("ladd").onclick=()=>{
   selLig=q;sel=null;$("lseq").value="";save();msg("");all();
 };
 $("ldel").onclick=()=>{if(selLig===null)return;delete LG[mode][selLig];selLig=null;save();all()};
-$("rst").onclick=()=>{TT[mode]={...DEFS[mode]};T=TT[mode];LG[mode]={};UL[mode]=[];sel=null;selLig=null;save();msg("元に戻しました");all()};
+$("clr").onclick=()=>{
+  if(selLig!==null&&LG[mode][selLig]){const lig=LG[mode][selLig];lig.cells=lig.cells.map(()=>"");save();msg("合字「"+selLig+"」の線をすべて消しました");all();return}
+  if(sel===null){msg("先に文字表の文字を選んでください");return}
+  T[canon(sel)]="";save();msg("「"+sel+"」の線をすべて消しました");all();
+};
+let rstTimer=null;
+$("rstall").onclick=()=>{
+  const b=$("rstall");
+  if(!rstTimer){b.textContent="本当に全初期化する（もう一度押す）";rstTimer=setTimeout(()=>{rstTimer=null;b.textContent="全初期化"},5000);return}
+  clearTimeout(rstTimer);rstTimer=null;b.textContent="全初期化";
+  ML.forEach(m=>{TT[m]={...DEFS[m]};LG[m]=cloneLG(m);UL[m]=[...DEFUL]});
+  DX=[];T=TT[mode];sel=null;selLig=null;save();msg("全部を初期値に戻しました");all();
+};
 
 $("imp").onclick=()=>{
   try{
@@ -427,7 +454,7 @@ $("imp").onclick=()=>{
     let m=7,g=o;
     if(isObj(o)&&isObj(o.glyphs)){g=o.glyphs;m=ML.includes(+o.segments)?+o.segments:7}
     UL[m]=isObj(o)&&Array.isArray(o.unlinked)?o.unlinked.filter(c=>typeof c==="string"&&[...c].length===1):[];
-    mode=m;TT[m]={...DEFS[m],...load(g,m)};T=TT[m];
+    mode=m;TT[m]={...DEFS[m],...load(g,m)};DX=Object.keys(D7).filter(k=>isObj(g)&&!(k in g));ML.forEach(mm=>DX.forEach(c=>{delete TT[mm][c]}));T=TT[m];
     if(isObj(o)&&isObj(o.ligatures))LG[m]=okLig(o.ligatures,m);
     selLig=null;save();msg("読み込みました（"+m+"セグ）");all();
   }catch(e){msg("JSONを読み込めませんでした")}
@@ -455,7 +482,7 @@ function poly(p,hw,ox=0,oy=0,sy=1){
 }
 
 function buildTTF(fam){
- const G=SEGS[mode],hw=SW[mode]*5,keys=Object.keys(T).filter(k=>[...k].length===1),gid={},gl=[[],[]],adv=[440,300];
+ const G=SEGS[mode],hw=SW[mode]*5,keys=Object.keys(T).filter(k=>[...k].length===1&&!DX.includes(k)),gid={},gl=[[],[]],adv=[440,300];
  keys.forEach(k=>{gid[k]=gl.length;adv.push(440);gl.push([...(T[k]||"")].filter(s=>G[s]).map(s=>poly(G[s],hw)))});
  const cm={32:1};
  const add=(ch,g)=>{const cp=ch.codePointAt(0);if(cp!==32)cm[cp]=g};
@@ -463,7 +490,7 @@ function buildTTF(fam){
  GROUPS.forEach(g=>{
    g.forEach(c=>{
      const head=canon(c);
-     if(gid[head]!==undefined)add(c,gid[head]);
+     if(gid[head]!==undefined&&!DX.includes(c))add(c,gid[head]);
    });
  });
  for(let i=0;i<26;i++){const u=String.fromCharCode(65+i),l=String.fromCharCode(97+i);if(!(u in gid)&&gid[l]!==undefined)add(u,gid[l])}
@@ -473,7 +500,7 @@ function buildTTF(fam){
   const cols=lig.cols,cells=lig.cells;
   const g=gl.length;
   gl.push(cells.flatMap((t,i)=>{
-    const cx=(i%cols)*320,cy=Math.floor(i/cols)*840;
+    const cx=(i%cols)*320,cy=-Math.floor(i/cols)*720;
     return [...(t||"")].filter(x=>G[x]).map(x=>poly(G[x],hw,cx,cy));
   }));
   adv.push(440+320*(cols-1));
@@ -487,9 +514,9 @@ function buildTTF(fam){
    let p=0;pts.forEach(q=>{glyf.u16(q[0]-p);p=q[0]});p=0;pts.forEach(q=>{glyf.u16(q[1]-p);p=q[1]});glyf.pad()}
   hmtx.u16(adv[i]).u16(0)});
  loca.u32(glyf.a.length);
- const head=new B().u32(0x00010000).u32(0x00010000).u32(0).u32(0x5F0F3CF5).u16(3).u16(1000).u32(0).u32(3900000000).u32(0).u32(3900000000).u16(0).u16(0).u16(1080).u16(840).u16(0).u16(8).u16(2).u16(1).u16(0);
- const hhea=new B().u32(0x00010000).u16(840).u16(-160).u16(0).u16(1080).u16(0).u16(0).u16(1080).u16(1).u16(0).u16(0).u32(0).u32(0).u16(0).u16(NG);
- const maxp=new B().u32(0x00010000).u16(NG).u16(300).u16(70).u16(0).u16(0).u16(1).u16(0).u16(0).u16(0).u16(0).u16(0).u16(0).u16(0).u16(0);
+ const head=new B().u32(0x00010000).u32(0x00010000).u32(0).u32(0x5F0F3CF5).u16(3).u16(1000).u32(0).u32(3900000000).u32(0).u32(3900000000).u16(0).u16(-1440).u16(1400).u16(840).u16(0).u16(8).u16(2).u16(1).u16(0);
+ const hhea=new B().u32(0x00010000).u16(840).u16(-160).u16(0).u16(1400).u16(0).u16(0).u16(1400).u16(1).u16(0).u16(0).u32(0).u32(0).u16(0).u16(NG);
+ const maxp=new B().u32(0x00010000).u16(NG).u16(800).u16(200).u16(0).u16(0).u16(1).u16(0).u16(0).u16(0).u16(0).u16(0).u16(0).u16(0).u16(0);
  const codes=Object.keys(cm).map(Number).filter(c=>c<0xFFFF).sort((x,y)=>x-y),sc=codes.length+1;
  let e=0;while((2<<e)<=sc)e++;const sr=2*(1<<e);
  const f4=new B().u16(4).u16(16+sc*8).u16(0).u16(sc*2).u16(sr).u16(e).u16(sc*2-sr);
