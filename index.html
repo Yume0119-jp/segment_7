@@ -27,6 +27,7 @@ p.s{color:var(--sub);margin:0 0 14px;max-width:62ch}
 .cell svg{height:56px;display:block;margin:0 auto 2px}
 .grid.lg{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}.sm .cell svg{height:38px}
 .cell span{font-size:.8rem;color:var(--sub)}
+.cell.ign{border-style:dashed;opacity:.75}
 .cell.dup{border-color:var(--red)}.cell.dup svg,.cell.dup span{color:var(--red)}
 .cell[aria-pressed="true"]{outline:2px solid var(--acc)}
 .cell:focus-visible,button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
@@ -60,11 +61,13 @@ footer{margin-top:48px;color:var(--sub);font-size:.85rem}
 <h2>文字表</h2>
 <p class="s">文字をタップすると、下の編集欄で線を変更できます。赤い文字は、ほかの文字と線が同じです。初期状態では<code>/</code>と<code>÷</code>、通貨記号（¥ $ € £ ¢ ₩）はそれぞれ連携していますが、編集欄から文字ごとに連携を解除して独立させることもできます。<code>\</code>は独立です。</p>
 <div class="grid" id="grid"></div>
+<p class="s" id="dupinfo"></p>
 <div class="row"><input type="text" id="nc" maxlength="2" size="4" placeholder="文字" aria-label="追加する文字"><button class="b" id="add">文字を追加</button><button class="b" id="del">選んだ文字を削除</button></div>
 
 <h2>合字（マトリクス配置）</h2>
 <p class="s">横（1〜4列）と縦（1〜3行）のサイズを選んで、最大4×3マス（田＝2×2など）の繋がった1つの字形を作れます。作った直後は各マスの字形が並び、セルを別々に編集できます。セルの境目は、左右の縦線も上下の横線も、重なって1本の線になります。境界線の連動も選べます。変換とTTFに反映されます。</p>
 <div class="grid lg" id="lgrid"></div>
+<p class="s" id="ligdupinfo"></p>
 <div class="row">
   <input type="text" id="lseq" size="6" maxlength="4" placeholder="文字/コード" aria-label="合字のキー">
   <label>横 <select id="lcols"><option value="1">1列</option><option value="2" selected>2列</option><option value="3">3列</option><option value="4">4列</option></select></label>
@@ -87,6 +90,10 @@ footer{margin-top:48px;color:var(--sub);font-size:.85rem}
 <p class="s">線をクリックでオン・オフ。変更はこのブラウザに保存されます。</p>
 <div class="row" id="linkRow" hidden>
   <button class="b" id="togLink"></button>
+</div>
+<div id="dupRow" hidden>
+  <p class="s" id="dupText"></p>
+  <div class="row"><button class="b" id="dupLink"></button><button class="b" id="dupIgn"></button></div>
 </div>
 <div class="row" id="ligLinkRow" hidden>
   <label class="chk"><input type="checkbox" id="ligSync" checked> セル境界の線を連動する</label>
@@ -133,17 +140,19 @@ const IDS=m=>Object.keys(SEGS[m]);
 const sortm=(s,m)=>IDS(m).filter(k=>s.includes(k)).join("");
 const M16={a:"ab",b:"c",c:"d",d:"ef",e:"g",f:"h",g:"ij"};
 const CONV={7:s=>s,9:s=>s,14:s=>s.replace("g","gh"),16:s=>[...s].map(k=>M16[k]).join("")};
-const GROUPS=[["/","÷"],["¥","$","€","£","¢","₩"]];
+const BASE_GROUPS=[["/","÷"],["¥","$","€","£","¢","₩"]];
+let GROUPS=BASE_GROUPS.map(g=>[...g]);
 const ORDER="abc def ghi jkl mMμ nop qrs tTu vwx yz0 123 456 789 !?\" #@& '() +-× ÷/\\ =≠ :;. ,*¥$ €£¢ ₩_|".replace(/ /g,"");
-const D7={"0":"abcdef","1":"abc","2":"abdeg","3":"abcdg","4":"bcfg","5":"acdfg","6":"acdefg","7":"abcf","8":"abcdefg","9":"abcdfg","a":"abcdeg","b":"cdefg","c":"deg","d":"bcdeg","e":"abdefg","f":"aefg","g":"adfg","h":"cefg","i":"acg","j":"bcdf","k":"acefg","l":"def","m":"aceg","M":"abcef","μ":"befg","n":"ceg","o":"cdeg","p":"abefg","q":"abcfg","r":"eg","s":"bdfg","t":"defg","T":"abdef","u":"cde","v":"acde","w":"acdeg","x":"acdf","y":"bcdfg","z":"abdf","!":"cef","?":"abeg","\"":"bf","#":"abde","@":"abef","&":"abcde","'":"b","(":"af",")":"cd","+":"bfg","-":"g","×":"bcdef","÷":"beg","/":"beg","\\":"cfg","=":"dg","≠":"bdg",":":"be",";":"cf",".":"e",",":"c","*":"abg","¥":"abcdf","$":"acfg","€":"abcdf","£":"abcdf","¢":"afg","₩":"bdef","_":"d","|":"bc","[":"aef","]":"bcd","`":"f","{":"bcg","}":"efg","‘":"fg","’":"ab","~":"a","^":"abf","≡":"adg","・":"ae","○":"","●":"abdfg","※":"bcef","Q":"bcdefg","A":"abcefg","E":"adefg","G":"acdef","…":"ce","—":"bce","C":"adef","R":"abceg","±":"bdefg","B":"acdg","H":"bcefg","J":"bcde","O":"abcd","I":"ef","¿":"cdfg","¡":"bcf","%":"acef","√":"bceg","≈":"ag","♀":"abcg","♂":"cdef","♪":"bdeg","°":"abfg","π":"ace"};
+const D7={"0":"abcdef","1":"abc","2":"abdeg","3":"abcdg","4":"bcfg","5":"acdfg","6":"acdefg","7":"abcf","8":"abcdefg","9":"abcdfg","a":"abcdeg","b":"cdefg","c":"deg","d":"bcdeg","e":"abdefg","f":"acf","g":"adfg","h":"cefg","i":"acg","j":"bcdf","k":"acefg","l":"bdef","m":"aceg","μ":"befg","n":"ceg","o":"cdeg","p":"abefg","q":"abcfg","r":"eg","s":"bdfg","t":"defg","T":"abdef","u":"cde","v":"acde","w":"acdeg","x":"acdf","y":"bcdfg","z":"abdf","!":"cef","?":"abeg","\"":"bf","#":"abde","@":"abef","&":"abcde","'":"b","(":"af",")":"cd","+":"bfg","-":"g","×":"bg","÷":"beg","/":"beg","\\":"cfg","=":"dg","≠":"bdg",":":"be",";":"cf",".":"e",",":"c","*":"abg","¥":"abcdf","$":"acfg","€":"dfg","¢":"afg","_":"d","|":"bc","[":"aef","]":"bcd","`":"f","{":"bcg","}":"efg","‘":"fg","’":"ab","~":"a","^":"abf","≡":"adg","・":"ae","○":"","●":"abdfg","※":"bcef","Q":"bcdefg","A":"abcefg","E":"adefg","G":"acdef","…":"ce","—":"bce","C":"adef","R":"abceg","±":"bdefg","B":"acdg","H":"bcefg","J":"bcde","I":"ef","¿":"cdfg","¡":"bcf","%":"acef","√":"bceg","≈":"ag","♀":"abcg","♂":"cdef","♪":"bdeg","°":"abfg","π":"ace","<":"adf",">":"acd","ε":"adeg","Γ":"aeg","Λ":"abce","♯":"abde","♭":"cdefg","元":"bef","¤":"abdg","U":"bcdef","N":"abcef","F":"aefg","D":"abcd","≒":"bdg","■":"ad","★":"bdf","□":"","☆":"","L":"def","ƒ":"bcdg","、":"cg","。":"cdg","「":"ade","」":"abd"};
 const DEFS={};ML.forEach(m=>{DEFS[m]={};Object.keys(D7).forEach(k=>DEFS[m][k]=CONV[m](D7[k]))});
 const isObj=v=>v&&typeof v==="object"&&!Array.isArray(v);
 
-const DEFLIG_RAW={"fi":{"cols":2,"rows":1,"cells":["aefg","bc"]},"ffi":{"cols":3,"rows":1,"cells":["aefg","aefg","bc"]},"co":{"cols":2,"rows":1,"cells":["cdg","cdeg"]},"fl":{"cols":2,"rows":1,"cells":["aefg","bcd"]},"ll":{"cols":2,"rows":1,"cells":["bef","bcdf"]},"II":{"cols":2,"rows":1,"cells":["ef","ef"]},"III":{"cols":3,"rows":1,"cells":["ef","ef","ef"]},"://":{"cols":3,"rows":1,"cells":["be","b","bce"]},"[:":{"cols":2,"rows":1,"cells":["abdef","adef"]},":]":{"cols":2,"rows":1,"cells":["abcd","abcdef"]},"[.":{"cols":2,"rows":1,"cells":["bc","adef"]},"].":{"cols":2,"rows":1,"cells":["abcd","ef"]},"[:-":{"cols":3,"rows":1,"cells":["abdef","adef","g"]},"-:]":{"cols":3,"rows":1,"cells":["g","abcd","abcde"]},"[.-":{"cols":3,"rows":1,"cells":["bc","adef","g"]},".-]":{"cols":3,"rows":1,"cells":["g","abcd","ef"]},"->":{"cols":2,"rows":1,"cells":["g","abcdg"]},"<-":{"cols":2,"rows":1,"cells":["adefg","g"]},"<->":{"cols":3,"rows":1,"cells":["adefg","g","abcdg"]},"^|":{"cols":2,"rows":1,"cells":["abcf","abef"]},"|v":{"cols":2,"rows":1,"cells":["bcde","cde"]},"v|":{"cols":2,"rows":1,"cells":["bcde","cdf"]},"|^":{"cols":2,"rows":1,"cells":["abcf","abf"]},"=>":{"cols":2,"rows":1,"cells":["dg","bdg"]},"=<":{"cols":2,"rows":1,"cells":["dfg","dg"]},"<=":{"cols":2,"rows":1,"cells":["dfg","dg"]},">=":{"cols":2,"rows":1,"cells":["dg","bdg"]},"www.":{"cols":3,"rows":1,"cells":["acdeg","acdeg","abe"]},"IIII":{"cols":4,"rows":1,"cells":["ef","ef","ef","ef"]},"!!":{"cols":2,"rows":1,"cells":["cf","cef"]},"!!!":{"cols":3,"rows":1,"cells":["cf","acdef","cef"]},"°c":{"cols":2,"rows":1,"cells":["abfg","deg"]},"°f":{"cols":2,"rows":1,"cells":["abfg","aefg"]},"°C":{"cols":2,"rows":1,"cells":["abfg","adef"]},"°F":{"cols":2,"rows":1,"cells":["abfg","aefg"]},"on":{"cols":2,"rows":1,"cells":["cdeg","ceg"]},"rd":{"cols":2,"rows":1,"cells":["eg","bcdeg"]},"oe":{"cols":2,"rows":1,"cells":["bcdeg","abefg"]},"ae":{"cols":2,"rows":1,"cells":["abcdeg","abdefg"]},"mail":{"cols":3,"rows":1,"cells":["aceg","abcdeg","abcg"]},"com":{"cols":3,"rows":1,"cells":["dg","cdeg","aceg"]},"nd":{"cols":2,"rows":1,"cells":["bceg","bcdeg"]}};
-const DEFUL=["¢", "₩", "$"];
+const DEFLIG_RAW={"fi":{"cols":2,"rows":1,"cells":["aefg","bc"]},"ffi":{"cols":3,"rows":1,"cells":["aefg","aefg","bc"]},"co":{"cols":2,"rows":1,"cells":["cdg","cdeg"]},"fl":{"cols":2,"rows":1,"cells":["aefg","bcd"]},"ll":{"cols":2,"rows":1,"cells":["bef","bcdf"]},"II":{"cols":2,"rows":1,"cells":["ef","ef"]},"III":{"cols":3,"rows":1,"cells":["ef","ef","ef"]},"://":{"cols":3,"rows":1,"cells":["be","b","bce"]},"[:":{"cols":2,"rows":1,"cells":["abdef","adef"]},":]":{"cols":2,"rows":1,"cells":["abcd","abcdef"]},"[.":{"cols":2,"rows":1,"cells":["bc","adef"]},"->":{"cols":2,"rows":1,"cells":["g","abcdg"]},"<-":{"cols":2,"rows":1,"cells":["adefg","g"]},"<->":{"cols":3,"rows":1,"cells":["adefg","g","abcdg"]},"^|":{"cols":2,"rows":1,"cells":["abcf","abef"]},"|v":{"cols":2,"rows":1,"cells":["bcde","cde"]},"v|":{"cols":2,"rows":1,"cells":["bcde","cdf"]},"|^":{"cols":2,"rows":1,"cells":["abcf","abf"]},"=>":{"cols":2,"rows":1,"cells":["dg","bdg"]},"=<":{"cols":2,"rows":1,"cells":["dfg","dg"]},"<=":{"cols":2,"rows":1,"cells":["dfg","dg"]},">=":{"cols":2,"rows":1,"cells":["dg","bdg"]},"www.":{"cols":3,"rows":1,"cells":["acdeg","acdeg","abe"]},"IIII":{"cols":4,"rows":1,"cells":["ef","adef","ef","ef"]},"!!":{"cols":2,"rows":1,"cells":["cf","cef"]},"!!!":{"cols":3,"rows":1,"cells":["cf","acdef","cef"]},"°c":{"cols":2,"rows":1,"cells":["abfg","deg"]},"°f":{"cols":2,"rows":1,"cells":["abfg","aefg"]},"°C":{"cols":2,"rows":1,"cells":["abfg","adef"]},"°F":{"cols":2,"rows":1,"cells":["abfg","aefg"]},"on":{"cols":2,"rows":1,"cells":["cdeg","ceg"]},"rd":{"cols":2,"rows":1,"cells":["eg","bcdeg"]},"oe":{"cols":2,"rows":1,"cells":["bcdeg","abefg"]},"ae":{"cols":2,"rows":1,"cells":["abcdeg","abdefg"]},"mail":{"cols":3,"rows":1,"cells":["aceg","abcdeg","abcg"]},"com":{"cols":3,"rows":1,"cells":["deg","cdeg","aceg"]},"nd":{"cols":2,"rows":1,"cells":["bceg","bcdeg"]},".]":{"cols":2,"rows":1,"cells":["abcd","ef"]},"]]":{"cols":2,"rows":1,"cells":["abcd","bcf"]},"[[":{"cols":2,"rows":1,"cells":["bef","adef"]},"<\\":{"cols":2,"rows":1,"cells":["adf","cfg"]},"<\\>":{"cols":3,"rows":1,"cells":["adf","cfg","acd"]},"==":{"cols":2,"rows":1,"cells":["dg","dg"]},"===":{"cols":3,"rows":1,"cells":["dg","dg","dg"]},"++":{"cols":2,"rows":1,"cells":["bfg","bfg"]},"+++":{"cols":3,"rows":1,"cells":["bfg","bfg","bfg"]},"--":{"cols":2,"rows":1,"cells":["g","g"]},"*/":{"cols":3,"rows":1,"cells":["abg","bcd","e"]},"/*":{"cols":3,"rows":1,"cells":["bc","bdef","afg"]},"0x":{"cols":3,"rows":1,"cells":["abcdef","defg",""]},"\\>":{"cols":2,"rows":1,"cells":["cfg","acd"]},"##":{"cols":2,"rows":1,"cells":["abde","abde"]},"###":{"cols":3,"rows":1,"cells":["abde","abde","abde"]},"!!!!":{"cols":4,"rows":1,"cells":["cf","acdef","acdef","cef"]},"|-|":{"cols":1,"rows":1,"cells":["bcefg"]},"|--|":{"cols":2,"rows":1,"cells":["efg","bcg"]},"|---":{"cols":3,"rows":1,"cells":["efg","g","g"]},"|--":{"cols":2,"rows":1,"cells":["efg","g"]},"|-":{"cols":1,"rows":1,"cells":["efg"]},"####":{"cols":4,"rows":1,"cells":["abde","abde","abde","abde"]},"====":{"cols":4,"rows":1,"cells":["dg","dg","dg","dg"]},"++++":{"cols":4,"rows":1,"cells":["bfg","bfg","bfg","bfg"]},"---":{"cols":3,"rows":1,"cells":["g","g","g"]},"----":{"cols":4,"rows":1,"cells":["g","g","g","g"]},"[]":{"cols":2,"rows":1,"cells":["adef","abcd"]},"[[]]":{"cols":3,"rows":1,"cells":["abcdef","abcdef","abcdef"]},"\\\\":{"cols":1,"rows":1,"cells":["cfg"]},"\\n":{"cols":2,"rows":1,"cells":["cdef","ceg"]},"|>":{"cols":2,"rows":1,"cells":["ef","abcd"]},"<|":{"cols":2,"rows":1,"cells":["adef","bc"]},"<<|":{"cols":3,"rows":1,"cells":["acdef","adef","bc"]},"|>>":{"cols":3,"rows":1,"cells":["ef","abcd","abcdf"]},"|>>>":{"cols":4,"rows":1,"cells":["ef","abcd","abcdf","abcdf"]},"<<<|":{"cols":4,"rows":1,"cells":["acdef","acdef","adef","bc"]},"[|":{"cols":1,"rows":1,"cells":["abcdef"]},"|]":{"cols":1,"rows":1,"cells":["abcdef"]},"ii":{"cols":2,"rows":1,"cells":["acg","ac"]},"iii":{"cols":3,"rows":1,"cells":["acg","acg","ace"]},"iiii":{"cols":4,"rows":1,"cells":["acg","acg","acg","ac"]},"-|":{"cols":1,"rows":1,"cells":["bcg"]},"--|":{"cols":2,"rows":1,"cells":["g","bcg"]},"---|":{"cols":3,"rows":1,"cells":["g","g","bcg"]},"[at]":{"cols":2,"rows":1,"cells":["aef","abcdeg"]},"app":{"cols":3,"rows":1,"cells":["abcd","abcdefg","abefg"]},"//":{"cols":1,"rows":1,"cells":["bcef"]},"http":{"cols":3,"rows":1,"cells":["bcefg","defg","bcdg"]},"cmd":{"cols":1,"rows":1,"cells":["bdef"]},"///":{"cols":2,"rows":1,"cells":["bef","bcef"]},"////":{"cols":3,"rows":1,"cells":["bef","be","bce"]},"[!]":{"cols":3,"rows":1,"cells":["acef","beg","bcdf"]},"[=]":{"cols":3,"rows":1,"cells":["adef","dg","abcd"]},"[_]":{"cols":3,"rows":1,"cells":["adef","d","abcd"]},"**":{"cols":2,"rows":1,"cells":["abg","abg"]},"***":{"cols":3,"rows":1,"cells":["abg","abg","abg"]},"****":{"cols":4,"rows":1,"cells":["abg","abg","abg","abg"]},"```":{"cols":3,"rows":1,"cells":["f","f","f"]},"js":{"cols":2,"rows":1,"cells":["bcdfg","bdfg"]},"py":{"cols":2,"rows":1,"cells":["abcfg","abcdefg"]},"html":{"cols":2,"rows":1,"cells":["cdefg","defg"]},"thx":{"cols":2,"rows":1,"cells":["ab","abcefg"]},"un":{"cols":2,"rows":1,"cells":["cde","ceg"]},"UN":{"cols":2,"rows":1,"cells":["bcdef","abcef"]},"NU":{"cols":2,"rows":1,"cells":["abcef","bcdef"]},"nu":{"cols":2,"rows":1,"cells":["ceg","cde"]},"UNU":{"cols":3,"rows":1,"cells":["bcdef","abcef","bcdef"]},"unu":{"cols":3,"rows":1,"cells":["cde","ceg","cde"]},"nun":{"cols":3,"rows":1,"cells":["ceg","cde","ceg"]},"NUN":{"cols":3,"rows":1,"cells":["abcef","bcdef","abcef"]},"NaN":{"cols":3,"rows":1,"cells":["abcef","abcdeg","abcef"]},"bot":{"cols":3,"rows":1,"cells":["cdefg","cdeg","defg"]},"[[]":{"cols":3,"rows":1,"cells":["ef","adef","abcd"]},"[]]":{"cols":3,"rows":1,"cells":["adef","abcd","bcef"]},"[[[":{"cols":3,"rows":1,"cells":["ef","adef","adef"]},"]]]":{"cols":3,"rows":1,"cells":["abcd","abcdef","bcef"]},"[[[[":{"cols":4,"rows":1,"cells":["ef","adef","adef","adef"]},"]]]]":{"cols":4,"rows":1,"cells":["abcd","abcdf","abcdf","bc"]},"<<":{"cols":2,"rows":1,"cells":["acdef","adef"]},">>":{"cols":2,"rows":1,"cells":["abcd","abcdf"]},"<<<":{"cols":3,"rows":1,"cells":["acdef","acdef","adef"]},">>>":{"cols":3,"rows":1,"cells":["abcd","abcdf","abcdf"]},">>>>":{"cols":4,"rows":1,"cells":["abcd","abcdf","abcdf","abcdf"]},"<<<<":{"cols":4,"rows":1,"cells":["acdef","acdef","abcdef","adef"]},"md":{"cols":2,"rows":1,"cells":["bcdeg","abcdefg"]},"CD":{"cols":2,"rows":1,"cells":["abcdef","abcdef"]},"0.":{"cols":2,"rows":1,"cells":["abcdef","ce"]},".0":{"cols":2,"rows":1,"cells":["e","abcdef"]}};
+const DEFUL=["¢", "₩", "$", "€"];
 const cloneLG=m=>{const r={};Object.keys(DEFLIG_RAW).forEach(q=>{const v=DEFLIG_RAW[q];r[q]={cols:v.cols,rows:v.rows,cells:v.cells.map(c=>CONV[m](c))}});return r};
-let mode=7,TT={},T,LG={},UL={},selLig=null,ligEdgeSync=true,DX=[];
-ML.forEach(m=>{LG[m]=cloneLG(m);UL[m]=[...DEFUL]});
+const DEFDX=[...ORDER].filter(c=>!(c in D7));
+let mode=7,TT={},T,LG={},UL={},IGN={},LIGN={},LDX={},LGG=[],selLig=null,ligEdgeSync=true,DX=[...DEFDX];
+ML.forEach(m=>{LG[m]=cloneLG(m);UL[m]=[...DEFUL];IGN[m]=[];LIGN[m]=[];LDX[m]=[]});
 
 const findGroup=c=>GROUPS.find(g=>g.includes(c))||null;
 const isUnlinked=(c,m=mode)=>Array.isArray(UL[m])&&UL[m].includes(c);
@@ -189,13 +198,17 @@ function load(o,m){
 
 ML.forEach(m=>TT[m]={...DEFS[m]});
 try{
-  const s=JSON.parse(localStorage.getItem("sevenseg6")||"null");
+  const s=JSON.parse(localStorage.getItem("sevenseg7")||"null");
   if(isObj(s)){
     if(ML.includes(+s.mode))mode=+s.mode;
     if(typeof s.ligEdgeSync==="boolean")ligEdgeSync=s.ligEdgeSync;
+    if(Array.isArray(s.groups)){const gs=s.groups.filter(g=>Array.isArray(g)&&g.length>1&&g.every(c=>typeof c==="string"&&[...c].length===1));if(gs.length)GROUPS=gs}
+    if(Array.isArray(s.ligGroups))LGG=s.ligGroups.filter(g=>Array.isArray(g)&&g.length>1&&g.every(q=>typeof q==="string"));
     if(Array.isArray(s.deleted))DX=s.deleted.filter(c=>typeof c==="string"&&[...c].length===1);
     ML.forEach(m=>{
       UL[m]=isObj(s.unlinked)&&Array.isArray(s.unlinked[m])?s.unlinked[m].filter(c=>typeof c==="string"&&[...c].length===1):[];
+      const sl=a=>isObj(s[a])&&Array.isArray(s[a][m])?s[a][m].filter(x=>typeof x==="string"):[];
+      IGN[m]=sl("ignored");LIGN[m]=sl("ligIgnored");LDX[m]=sl("ligDeleted");
       const tab=isObj(s.tabs)?s.tabs[m]:null;
       const lig=isObj(s.ligs)?s.ligs[m]:null;
       TT[m]={...DEFS[m],...load(tab,m)};DX.forEach(c=>{delete TT[m][c]});
@@ -206,7 +219,7 @@ try{
 T=TT[mode];
 const save=()=>{
   try{
-    localStorage.setItem("sevenseg6",JSON.stringify({v:8,mode,tabs:TT,ligs:LG,unlinked:UL,ligEdgeSync,deleted:DX}));
+    localStorage.setItem("sevenseg7",JSON.stringify({v:9,mode,tabs:TT,ligs:LG,unlinked:UL,ligEdgeSync,deleted:DX,groups:GROUPS,ligGroups:LGG,ignored:IGN,ligIgnored:LIGN,ligDeleted:LDX}));
   }catch(e){}
 };
 const msg=t=>{$("msg").textContent=t};
@@ -255,8 +268,9 @@ function svg2(lig){
   }).join("")+'</svg>';
 }
 
+const altCase=c=>{const l=c.toLowerCase(),u=c.toUpperCase(),r=c===l?u:l;return r!==c&&[...r].length===1?r:null};
 function look(c){
-  if(DX.includes(c))return null;
+  if(DX.includes(c)){const a=altCase(c);return a&&!DX.includes(a)?look(a):null}
   const k=canon(c);
   if(T[k]!==undefined)return T[k];
   const g=findGroup(c);
@@ -268,6 +282,7 @@ function look(c){
   return T[l]!==undefined?T[l]:null;
 }
 
+const ligFor=q=>{const lg=LG[mode];if(lg[q])return lg[q];if(LDX[mode].includes(q)){for(const a of [q.toLowerCase(),q.toUpperCase()])if(a!==q&&lg[a]&&!LDX[mode].includes(a))return lg[a]}return null};
 function line(str,el){
   el.innerHTML="";const a=[...str],lg=LG[mode];
   for(let i=0;i<a.length;i++){
@@ -278,10 +293,10 @@ function line(str,el){
     for(const n of [4,3,2,1]){
       if(a.length-i>=n){
         const q=a.slice(i,i+n).join("");
-        if(lg[q]){hit=[q,n];break}
+        const e=ligFor(q);if(e){hit=[e,n];break}
       }
     }
-    if(hit){el.insertAdjacentHTML("beforeend",svg2(lg[hit[0]]));i+=hit[1]-1;continue}
+    if(hit){el.insertAdjacentHTML("beforeend",svg2(hit[0]));i+=hit[1]-1;continue}
     const s=look(c);el.insertAdjacentHTML("beforeend",s===null?'<span style="align-self:center;color:var(--sub)">'+esc(c)+'</span>':svg(s));
   }
 }
@@ -289,10 +304,16 @@ function line(str,el){
 let sel=null,shown=300;
 const chars=()=>{const o=[...ORDER],b=o.filter(c=>!DX.includes(c));return b.concat(Object.keys(T).filter(k=>!o.includes(k)&&!DX.includes(k)))};
 function drawModes(){$("modes").innerHTML=ML.map(m=>`<button role="radio" aria-checked="${m===mode}" data-m="${m}">${m}セグ</button>`).join("")}
+function dupInfo(){
+ const by={},seen=new Set();
+ chars().forEach(c=>{const h=canon(c);if(seen.has(h))return;seen.add(h);const v=look(c)||"";if(!v||IGN[mode].includes(h))return;(by[v]=by[v]||[]).push(h)});
+ return by;
+}
 function drawGrid(){
- const cnt={};
- chars().forEach(c=>{const v=look(c)||"";if(v)cnt[v]=(cnt[v]||0)+1});
- $("grid").innerHTML=chars().map(c=>{const v=look(c)||"";return `<button class="cell${v&&cnt[v]>1?" dup":""}" data-c="${esc(c)}" aria-pressed="${c===sel}" aria-label="${esc(c)}">${svg(v)}<span>${esc(c)}</span></button>`}).join("");
+ const by=dupInfo();
+ $("grid").innerHTML=chars().map(c=>{const v=look(c)||"",h=canon(c),ig=IGN[mode].includes(h),d=!ig&&v&&by[v]&&by[v].length>1;return `<button class="cell${d?" dup":""}${ig?" ign":""}" data-c="${esc(c)}" aria-pressed="${c===sel}" aria-label="${esc(c)}">${svg(v)}<span>${esc(c)}</span></button>`}).join("");
+ const gs=Object.values(by).filter(a=>a.length>1);
+ $("dupinfo").textContent=gs.length?"重複している字形（赤枠）："+gs.map(a=>a.join(" = ")).join("　／　"):"重複している字形はありません";
 }
 function drawFree(){
  const ids=IDS(mode),n=ids.length,used=new Set(Object.values(T).filter(Boolean)),list=[];
@@ -302,7 +323,45 @@ function drawFree(){
  $("free").innerHTML=list.slice(0,shown).map(s=>`<button class="cell" data-s="${s}" aria-label="${s}">${svg(s)}<span>${s}</span></button>`).join("");
  $("more").hidden=list.length<=shown;
 }
-function drawLig(){$("lgrid").innerHTML=Object.keys(LG[mode]).map(q=>{const lig=LG[mode][q];return `<button class="cell" data-q="${esc(q)}" aria-pressed="${q===selLig}" aria-label="合字 ${esc(q)}">${svg2(lig)}<span>${esc(q)}</span></button>`}).join("")||'<p class="s">合字はまだありません。</p>'}
+const ligKey=l=>l.cols+"x"+l.rows+":"+l.cells.map(c=>sortm(c,mode)).join("|");
+const ligGroupOf=q=>LGG.find(g=>g.includes(q))||null;
+const ligRep=q=>{const g=ligGroupOf(q);return g?(g.find(x=>LG[mode][x])||q):q};
+function ligDupInfo(){
+ const by={},seen=new Set();
+ Object.keys(LG[mode]).forEach(q=>{const r=ligRep(q);if(seen.has(r))return;seen.add(r);const l=LG[mode][r];if(!l||l.cells.every(c=>!c)||LIGN[mode].includes(r))return;(by[ligKey(l)]=by[ligKey(l)]||[]).push(r)});
+ return by;
+}
+function drawLig(){
+ const by=ligDupInfo();
+ $("lgrid").innerHTML=Object.keys(LG[mode]).map(q=>{const lig=LG[mode][q],r=ligRep(q),ig=LIGN[mode].includes(r),d=!ig&&by[ligKey(lig)]&&by[ligKey(lig)].length>1;return `<button class="cell${d?" dup":""}${ig?" ign":""}" data-q="${esc(q)}" aria-pressed="${q===selLig}" aria-label="合字 ${esc(q)}">${svg2(lig)}<span>${esc(q)}</span></button>`}).join("")||'<p class="s">合字はまだありません。</p>';
+ const gs=Object.values(by).filter(a=>a.length>1);
+ $("ligdupinfo").textContent=gs.length?"重複している合字（赤枠）："+gs.map(a=>a.join(" = ")).join("　／　"):"重複している合字はありません";
+}
+function syncLig(q){const g=ligGroupOf(q);if(!g)return;const src=LG[mode][q];if(!src)return;g.forEach(r=>{if(r!==q&&LG[mode][r])LG[mode][r]={cols:src.cols,rows:src.rows,cells:[...src.cells]}})}
+function mergeGroups(groups,list){const set=new Set(list),keep=[];let merged=[...list];groups.forEach(g=>{if(g.some(c=>set.has(c)))merged.push(...g);else keep.push(g)});return[...keep,[...new Set(merged)]]}
+function drawDup(){
+ const row=$("dupRow"),text=$("dupText"),lk=$("dupLink"),ign=$("dupIgn");
+ if(selLig!==null&&LG[mode][selLig]){
+  const r=ligRep(selLig),by=ligDupInfo(),k=ligKey(LG[mode][r]),peers=(by[k]||[]).filter(x=>x!==r),ig=LIGN[mode].includes(r),gr=ligGroupOf(selLig);
+  if(!peers.length&&!ig&&!gr){row.hidden=true;return}
+  row.hidden=false;
+  text.textContent=(peers.length?"同じ字形の合字："+peers.join("　"):"")+(ig?"　（重複を無視中）":"")+(gr?"　連携中の合字："+gr.join(" "):"");
+  lk.hidden=!peers.length;lk.textContent="同じ字形の合字を連携する";
+  ign.hidden=!(peers.length||ig);ign.textContent=ig?"重複の無視を解除":"この重複を無視する";
+  return;
+ }
+ if(sel!==null){
+  const h=canon(sel),v=look(sel)||"",by=dupInfo(),peers=(by[v]||[]).filter(x=>x!==h),ig=IGN[mode].includes(h);
+  if(!v||(!peers.length&&!ig)){row.hidden=true;return}
+  row.hidden=false;
+  text.textContent=(peers.length?"同じ字形の文字："+peers.join("　"):"")+(ig?"　（重複を無視中）":"");
+  lk.hidden=!peers.length;lk.textContent="同じ字形の文字を連携する";
+  ign.hidden=!(peers.length||ig);ign.textContent=ig?"重複の無視を解除":"この重複を無視する";
+  return;
+ }
+ row.hidden=true;
+}
+
 
 function drawEd(){
  const big=$("big"),linkRow=$("linkRow"),togLink=$("togLink"),ligLinkRow=$("ligLinkRow");
@@ -356,11 +415,11 @@ function drawEd(){
 }
 
 function render(){$("out").style.setProperty("--h",$("sz").value+"px");line($("src").value,$("out"));line("my name is",$("hero"))}
-function all(){drawModes();drawGrid();drawLig();drawFree();drawEd();render()}
+function all(){drawModes();drawGrid();drawLig();drawFree();drawEd();drawDup();render()}
 
 $("modes").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;mode=+b.dataset.m;T=TT[mode];shown=300;selLig=null;save();msg("");all()});
-$("grid").addEventListener("click",e=>{const b=e.target.closest(".cell");if(!b)return;sel=b.dataset.c;selLig=null;drawGrid();drawLig();drawEd()});
-$("lgrid").addEventListener("click",e=>{const b=e.target.closest(".cell");if(!b)return;selLig=b.dataset.q;sel=null;drawGrid();drawLig();drawEd()});
+$("grid").addEventListener("click",e=>{const b=e.target.closest(".cell");if(!b)return;sel=b.dataset.c;selLig=null;drawGrid();drawLig();drawEd();drawDup()});
+$("lgrid").addEventListener("click",e=>{const b=e.target.closest(".cell");if(!b)return;selLig=b.dataset.q;sel=null;drawGrid();drawLig();drawEd();drawDup()});
 $("free").addEventListener("click",e=>{const b=e.target.closest(".cell");if(!b)return;if(sel===null){msg("先に文字表の文字を選んでください");return}T[canon(sel)]=b.dataset.s;save();msg("");all()});
 $("more").onclick=()=>{shown+=300;drawFree()};
 
@@ -391,6 +450,25 @@ $("togLink").onclick=()=>{
   all();
 };
 
+$("dupLink").onclick=()=>{
+  if(selLig!==null&&LG[mode][selLig]){
+    const r=ligRep(selLig),by=ligDupInfo(),peers=(by[ligKey(LG[mode][r])]||[]).filter(x=>x!==r);
+    LGG=mergeGroups(LGG,[r,...peers]);syncLig(r);save();msg("同じ字形の合字を連携しました（片方を編集すると、もう片方も変わります）");all();return;
+  }
+  if(sel===null)return;
+  const h=canon(sel),v=look(sel)||"",by=dupInfo(),peers=(by[v]||[]).filter(x=>x!==h),list=[h,...peers];
+  if(!peers.length)return;
+  UL[mode]=UL[mode].filter(c=>!list.includes(c));
+  GROUPS=mergeGroups(GROUPS,list);
+  const head=canon(h);
+  ML.forEach(m=>{if(TT[m][head]===undefined){const f=list.find(c=>TT[m][c]!==undefined);TT[m][head]=f!==undefined?TT[m][f]:""}});
+  T[head]=v;save();msg("同じ字形の文字を連携しました（"+list.join(" ")+"）");all();
+};
+$("dupIgn").onclick=()=>{
+  if(selLig!==null&&LG[mode][selLig]){const r=ligRep(selLig),a=LIGN[mode];LIGN[mode]=a.includes(r)?a.filter(x=>x!==r):[...a,r];save();all();return}
+  if(sel===null)return;
+  const h=canon(sel),a=IGN[mode];IGN[mode]=a.includes(h)?a.filter(x=>x!==h):[...a,h];save();all();
+};
 $("ligSync").onchange=e=>{
   ligEdgeSync=e.target.checked;
   save();
@@ -403,7 +481,7 @@ function tog(k,cell){
     const set=(c,id,val)=>{let t=(lig.cells[c]||"").replace(id,"");if(val)t+=id;lig.cells[c]=sortm(t,mode)};
     set(cell,k,!on);
     if(tw)set(tw[0],tw[1],!on);
-    save();all();return;
+    syncLig(selLig);save();all();return;
   }
   if(sel===null)return;
   const c=canon(sel);
@@ -430,12 +508,12 @@ $("ladd").onclick=()=>{
     const ch=q[i];
     return ch?(look(ch)||""):"";
   });
-  LG[mode][q]={cols,rows,cells:defaultCells};
+  LG[mode][q]={cols,rows,cells:defaultCells};LDX[mode]=LDX[mode].filter(x=>x!==q);
   selLig=q;sel=null;$("lseq").value="";save();msg("");all();
 };
-$("ldel").onclick=()=>{if(selLig===null)return;delete LG[mode][selLig];selLig=null;save();all()};
+$("ldel").onclick=()=>{if(selLig===null)return;const q=selLig;delete LG[mode][q];if(!LDX[mode].includes(q))LDX[mode].push(q);LGG=LGG.map(g=>g.filter(x=>x!==q)).filter(g=>g.length>1);selLig=null;save();msg("合字「"+q+"」を削除しました（大文字・小文字違いの合字があれば、その形で補います）");all()};
 $("clr").onclick=()=>{
-  if(selLig!==null&&LG[mode][selLig]){const lig=LG[mode][selLig];lig.cells=lig.cells.map(()=>"");save();msg("合字「"+selLig+"」の線をすべて消しました");all();return}
+  if(selLig!==null&&LG[mode][selLig]){const lig=LG[mode][selLig];lig.cells=lig.cells.map(()=>"");syncLig(selLig);save();msg("合字「"+selLig+"」の線をすべて消しました");all();return}
   if(sel===null){msg("先に文字表の文字を選んでください");return}
   T[canon(sel)]="";save();msg("「"+sel+"」の線をすべて消しました");all();
 };
@@ -445,7 +523,7 @@ $("rstall").onclick=()=>{
   if(!rstTimer){b.textContent="本当に全初期化する（もう一度押す）";rstTimer=setTimeout(()=>{rstTimer=null;b.textContent="全初期化"},5000);return}
   clearTimeout(rstTimer);rstTimer=null;b.textContent="全初期化";
   ML.forEach(m=>{TT[m]={...DEFS[m]};LG[m]=cloneLG(m);UL[m]=[...DEFUL]});
-  DX=[];T=TT[mode];sel=null;selLig=null;save();msg("全部を初期値に戻しました");all();
+  DX=[...DEFDX];GROUPS=BASE_GROUPS.map(g=>[...g]);LGG=[];ML.forEach(m=>{IGN[m]=[];LIGN[m]=[];LDX[m]=[]});T=TT[mode];sel=null;selLig=null;save();msg("全部を初期値に戻しました");all();
 };
 
 $("imp").onclick=()=>{
@@ -454,8 +532,15 @@ $("imp").onclick=()=>{
     let m=7,g=o;
     if(isObj(o)&&isObj(o.glyphs)){g=o.glyphs;m=ML.includes(+o.segments)?+o.segments:7}
     UL[m]=isObj(o)&&Array.isArray(o.unlinked)?o.unlinked.filter(c=>typeof c==="string"&&[...c].length===1):[];
-    mode=m;TT[m]={...DEFS[m],...load(g,m)};DX=Object.keys(D7).filter(k=>isObj(g)&&!(k in g));ML.forEach(mm=>DX.forEach(c=>{delete TT[mm][c]}));T=TT[m];
+    mode=m;TT[m]={...DEFS[m],...load(g,m)};DX=[...new Set([...ORDER,...Object.keys(D7)])].filter(k=>isObj(g)&&!(k in g));ML.forEach(mm=>DX.forEach(c=>{delete TT[mm][c]}));T=TT[m];
     if(isObj(o)&&isObj(o.ligatures))LG[m]=okLig(o.ligatures,m);
+    if(isObj(o)){
+      if(Array.isArray(o.groups)){const gs=o.groups.filter(x=>Array.isArray(x)&&x.length>1&&x.every(c=>typeof c==="string"&&[...c].length===1));if(gs.length)GROUPS=gs}
+      if(Array.isArray(o.ligGroups))LGG=o.ligGroups.filter(x=>Array.isArray(x)&&x.length>1&&x.every(q=>typeof q==="string"));
+      const sa=a=>Array.isArray(a)?a.filter(x=>typeof x==="string"):[];
+      if(isObj(o.ignored)){IGN[m]=sa(o.ignored.glyphs);LIGN[m]=sa(o.ignored.ligatures)}
+      LDX[m]=sa(o.ligDeleted);
+    }
     selLig=null;save();msg("読み込みました（"+m+"セグ）");all();
   }catch(e){msg("JSONを読み込めませんでした")}
 };
@@ -469,7 +554,7 @@ async function dl(name,data){
 $("exj").onclick=()=>{
   const exportedGlyphs={};
   chars().forEach(c=>{exportedGlyphs[c]=look(c)||""});
-  dl("seven-seg-"+mode+".json",JSON.stringify({segments:mode,glyphs:exportedGlyphs,ligatures:LG[mode],unlinked:UL[mode]},null,1));
+  dl("seven-seg-"+mode+".json",JSON.stringify({segments:mode,glyphs:exportedGlyphs,ligatures:LG[mode],unlinked:UL[mode],groups:GROUPS,ligGroups:LGG,ignored:{glyphs:IGN[mode],ligatures:LIGN[mode]},ligDeleted:LDX[mode]},null,1));
 };
 
 class B{constructor(){this.a=[]}u8(v){this.a.push(v&255);return this}u16(v){return this.u8(v>>8).u8(v)}u32(v){return this.u16(v>>>16).u16(v)}raw(x){for(const v of x)this.a.push(v);return this}pad(){while(this.a.length%4)this.a.push(0);return this}}
@@ -494,7 +579,8 @@ function buildTTF(fam){
    });
  });
  for(let i=0;i<26;i++){const u=String.fromCharCode(65+i),l=String.fromCharCode(97+i);if(!(u in gid)&&gid[l]!==undefined)add(u,gid[l])}
- const ligs=[];
+ DX.forEach(c=>{const a=altCase(c);if(a&&!DX.includes(a)){const g2=cm[a.codePointAt(0)];if(g2!==undefined&&cm[c.codePointAt(0)]===undefined)cm[c.codePointAt(0)]=g2}});
+ const ligs=[],ligGlyph={};
  Object.keys(LG[mode]).forEach(q=>{
   const lig=LG[mode][q],ids=[...q].map(c=>{const cp=c.codePointAt(0);if(cp===32)return 1;if(cm[cp]===undefined){cm[cp]=gl.length;gl.push([]);adv.push(300)}return cm[cp]});
   const cols=lig.cols,cells=lig.cells;
@@ -504,8 +590,9 @@ function buildTTF(fam){
     return [...(t||"")].filter(x=>G[x]).map(x=>poly(G[x],hw,cx,cy));
   }));
   adv.push(440+320*(cols-1));
-  ligs.push({ids,g});
+  ligs.push({ids,g});ligGlyph[q]=g;
  });
+ LDX[mode].forEach(q=>{if(LG[mode][q])return;for(const a of [q.toLowerCase(),q.toUpperCase()]){if(a!==q&&ligGlyph[a]!==undefined&&!LDX[mode].includes(a)){const ids=[...q].map(c=>{const cp=c.codePointAt(0);if(cp===32)return 1;if(cm[cp]===undefined){cm[cp]=gl.length;gl.push([]);adv.push(300)}return cm[cp]});ligs.push({ids,g:ligGlyph[a]});break}}});
  const NG=gl.length,glyf=new B(),loca=new B(),hmtx=new B();
  gl.forEach((cs,i)=>{loca.u32(glyf.a.length);
   if(cs.length){const pts=cs.flat(),xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
